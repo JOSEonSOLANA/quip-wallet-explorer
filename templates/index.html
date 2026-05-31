@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quip Wallet Explorer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0d1117; color: #c9d1d9; padding: 24px; max-width: 1100px; margin: 0 auto; }
+  h1 { color: #58a6ff; font-size: 22px; margin-bottom: 16px; }
+  .search-box { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+  .search-box input { flex: 1; min-width: 250px; padding: 10px 14px; background: #161b22; border: 1px solid #30363d; border-radius: 6px; color: #c9d1d9; font-size: 14px; font-family: monospace; }
+  .search-box input:focus { outline: none; border-color: #58a6ff; }
+  .search-box button { padding: 10px 20px; background: #238636; border: none; border-radius: 6px; color: #fff; font-size: 14px; cursor: pointer; font-weight: 600; }
+  .search-box button:hover { background: #2ea043; }
+  .error { background: #3b1a1a; border: 1px solid #f85149; color: #f85149; padding: 12px; border-radius: 6px; margin-bottom: 16px; display: none; }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+  .card .address { font-size: 12px; color: #8b949e; font-family: monospace; word-break: break-all; margin-bottom: 12px; }
+  .balance-row { display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px; }
+  .balance-big { font-size: 32px; font-weight: 700; color: #3fb950; font-family: monospace; }
+  .balance-label { color: #8b949e; font-size: 13px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+  .stat { background: #0d1117; border-radius: 6px; padding: 10px; }
+  .stat .label { color: #8b949e; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat .value { font-size: 15px; font-weight: 600; font-family: monospace; margin-top: 2px; }
+  .stat .value.blue { color: #58a6ff; }
+  .stat .value.gold { color: #d29922; }
+  .stat .value.silver { color: #8b949e; }
+  .stat .value.bronze { color: #a371f7; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; color: #8b949e; font-size: 11px; text-transform: uppercase; padding: 8px 10px; border-bottom: 1px solid #30363d; }
+  td { padding: 8px 10px; border-bottom: 1px solid #21262d; font-size: 12px; font-family: monospace; }
+  td .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; text-transform: uppercase; }
+  td .tag.mining { background: #1f6feb33; color: #58a6ff; }
+  td .tag.faucet { background: #23863633; color: #3fb950; }
+  td .tag.transfer { background: #9e6a0333; color: #d29922; }
+  td .tag.deposit { background: #23863633; color: #3fb950; }
+  td .tag.block_winner { background: #6f42c133; color: #a371f7; }
+  td .tag.fee { background: #f8514933; color: #f85149; }
+  td .tag.remark { background: #8b949e33; color: #8b949e; }
+  td .tag.info { background: #8b949e33; color: #8b949e; }
+  td .incoming { color: #3fb950; }
+  td .outgoing { color: #f85149; }
+  td .date { font-size: 11px; color: #8b949e; white-space: nowrap; }
+  td .rank-num { font-weight: 700; }
+  .gold { color: #d29922; }
+  .silver { color: #8b949e; }
+  .bronze { color: #a371f7; }
+  .loading { text-align: center; padding: 40px; color: #8b949e; }
+  .loading .spinner { display: inline-block; width: 24px; height: 24px; border: 2px solid #30363d; border-top-color: #58a6ff; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 12px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .block-info { color: #8b949e; font-size: 13px; margin-bottom: 8px; }
+  .empty { text-align: center; padding: 24px; color: #8b949e; font-size: 13px; }
+  .summary-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; padding: 12px; background: #0d1117; border-radius: 8px; }
+  .summary-item { text-align: center; min-width: 80px; }
+  .summary-item .num { font-size: 20px; font-weight: 700; font-family: monospace; }
+  .summary-item .lbl { font-size: 10px; color: #8b949e; text-transform: uppercase; }
+  .progress-card { background: #161b22; border: 1px solid #1f6feb; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+  .progress-card .pct { font-size: 14px; color: #58a6ff; margin-bottom: 8px; }
+  .progress-bg { background: #21262d; border-radius: 10px; height: 12px; overflow: hidden; }
+  .progress-fill { background: linear-gradient(90deg, #1f6feb, #58a6ff); height: 100%; border-radius: 10px; transition: width 1s ease; }
+  .progress-info { display: flex; justify-content: space-between; margin-top: 6px; font-size: 11px; color: #8b949e; }
+  .progress-info .events { color: #3fb950; }
+  .section-title { color: #58a6ff; font-size: 16px; margin: 20px 0 12px 0; }
+  .toggle-link { color: #8b949e; font-size: 12px; cursor: pointer; margin-left: 8px; }
+  .toggle-link:hover { color: #58a6ff; }
+  .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .header h1 { margin-bottom: 0; }
+  .note-btn { background: none; border: 1px solid #30363d; color: #8b949e; padding: 6px 14px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+  .note-btn:hover { border-color: #58a6ff; color: #58a6ff; }
+  .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 100; }
+  .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 28px; max-width: 480px; width: 90%; z-index: 101; }
+  .modal h2 { color: #58a6ff; font-size: 16px; margin-bottom: 16px; }
+  .modal p { color: #c9d1d9; font-size: 13px; line-height: 1.6; margin-bottom: 12px; }
+  .modal-close { float: right; background: none; border: none; color: #8b949e; font-size: 20px; cursor: pointer; }
+  .modal-close:hover { color: #f85149; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>Quip Wallet Explorer</h1>
+  <button class="note-btn" onclick="showNote()">NOTE</button>
+</div>
+<div class="modal-overlay" id="noteOverlay" onclick="hideNote()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="hideNote()">&times;</button>
+    <h2>About this Explorer</h2>
+    <p>This page queries the Quip Testnet via a public bootnode RPC endpoint. To keep responses fast, only the <strong>last 50 blocks</strong> are scanned for events. The wallet balance (free, reserved, total) is fetched live and is always current.</p>
+    <p><strong>Event history</strong> is limited to recent activity. For a complete historical scan (all blocks from genesis), run the wallet locally against your own validator &mdash; scanning the full chain over a public RPC would take several hours.</p>
+    <p>The <strong>ranking</strong> shows all wallets that have been searched on this page, sorted by total QUIP balance.</p>
+  </div>
+</div>
+<script>
+function showNote() { document.getElementById('noteOverlay').style.display = 'block'; }
+function hideNote() { document.getElementById('noteOverlay').style.display = 'none'; }
+</script>
+<div class="search-box">
+  <input type="text" id="addressInput" placeholder="Enter SS58 address" spellcheck="false">
+  <button onclick="search()">Search</button>
+</div>
+<div id="blockInfo" class="block-info"></div>
+<div class="error" id="error"></div>
+<div id="progressContainer"></div>
+<div id="loading" class="loading" style="display:none"><div class="spinner"></div><div>Loading balance...</div></div>
+<div id="result"></div>
+
+<div class="section-title">Wallet Ranking <span class="toggle-link" id="rankingToggle" onclick="toggleRanking()">hide</span></div>
+<div id="rankingContainer"></div>
+
+<script>
+let pollTimer = null;
+
+function shortAddr(addr) { return addr.slice(0,6) + '...' + addr.slice(-4); }
+function fmtDate(ts) { return ts ? new Date(ts * 1000).toLocaleDateString() + ' ' + new Date(ts * 1000).toLocaleTimeString() : ''; }
+function tagClass(t) { return {mining:'mining',faucet:'faucet',transfer:'transfer',deposit:'deposit',block_winner:'block_winner',fee:'fee',remark:'remark'}[t]||'info'; }
+function tagLabel(t) { return {mining:'Mining',faucet:'Faucet',transfer:'Transfer',deposit:'Deposit',block_winner:'Winner',fee:'Fee',remark:'Remark'}[t]||t.replace(/^(Balances|System|QuantumPow|TransactionPayment)\./,''); }
+
+function rankClass(i) { if (i===0) return 'gold'; if (i===1) return 'silver'; if (i===2) return 'bronze'; return 'blue'; }
+
+function loadRanking() {
+  fetch('/api/ranking').then(r=>r.json()).then(data => {
+    let h = '<div class="card" style="padding:12px"><table><tr><th>#</th><th>Wallet</th><th>Balance</th></tr>';
+    data.forEach((r, i) => {
+      h += '<tr><td class="rank-num ' + rankClass(i) + '">#' + (i+1) + '</td>'
+        + '<td>' + r.short + '</td>'
+        + '<td class="incoming">' + r.total.toFixed(4) + ' QUIP</td></tr>';
+    });
+    h += '</table></div>';
+    document.getElementById('rankingContainer').innerHTML = h;
+  }).catch(() => {});
+}
+
+function toggleRanking() {
+  const c = document.getElementById('rankingContainer');
+  const t = document.getElementById('rankingToggle');
+  if (c.style.display === 'none') { c.style.display = ''; t.textContent = 'hide'; }
+  else { c.style.display = 'none'; t.textContent = 'show'; }
+}
+
+function renderBalance(data) {
+  let h = '<div class="card"><div class="address">' + data.address + '</div>';
+  h += '<div class="balance-row"><span class="balance-big">' + data.free.toFixed(4) + '</span><span class="balance-label">QUIP</span></div>';
+  h += '<div class="stats">';
+  h += '<div class="stat"><div class="label">Total</div><div class="value blue">' + data.total.toFixed(4) + ' QUIP</div></div>';
+  h += '<div class="stat"><div class="label">Reserved</div><div class="value blue">' + data.reserved.toFixed(4) + ' QUIP</div></div>';
+  h += '<div class="stat"><div class="label">Nonce</div><div class="value blue">' + data.nonce + '</div></div>';
+  h += '<div class="stat"><div class="label">Events</div><div class="value blue">' + (data.cache ? data.cache.events.length : 0) + '</div></div>';
+  h += '</div></div>';
+  return h;
+}
+
+function renderEvents(events) {
+  if (events.length === 0) return '<div class="empty">No activity found</div>';
+  const byType = {};
+  for (const h of events) byType[h.type] = (byType[h.type] || 0) + 1;
+  let html = '<div class="summary-row">';
+  for (const [t, c] of Object.entries(byType)) html += '<div class="summary-item"><div class="num ' + tagClass(t) + '">' + c + '</div><div class="lbl">' + tagLabel(t) + '</div></div>';
+  html += '</div><div class="card" style="overflow-x:auto"><table><tr><th>Date</th><th>Block</th><th>Type</th><th>Amount</th></tr>';
+  for (const h of [...events].reverse()) {
+    const cls = h.subtype === 'incoming' ? 'incoming' : h.subtype === 'outgoing' ? 'outgoing' : '';
+    const sign = h.subtype === 'incoming' ? '+' : h.subtype === 'outgoing' ? '-' : '';
+    const val = h.amount != null && h.amount !== false ? h.amount : null;
+    html += '<tr><td class="date">' + fmtDate(h.ts) + '</td><td>' + h.block + '</td>';
+    html += '<td><span class="tag ' + tagClass(h.type) + '">' + tagLabel(h.type) + '</span></td>';
+    html += '<td class="' + cls + '">' + sign + (val !== null && val > 0 ? val.toFixed(4) : (val !== null ? val : '')) + (val !== null && val > 0 ? ' QUIP' : '') + '</td></tr>';
+  }
+  html += '</table></div>';
+  return html;
+}
+
+function renderProgress(cache) {
+  if (!cache || !cache.status) return '';
+  if (cache.status === 'complete') return '<div class="progress-card"><div class="pct">Scan complete &mdash; ' + cache.events.length + ' events</div><div class="progress-bg"><div class="progress-fill" style="width:100%"></div></div></div>';
+  if (cache.status === 'error') return '<div class="progress-card"><div style="color:#f85149">Error: ' + (cache.error||'unknown') + '</div></div>';
+  const pct = cache.progress || 0;
+  return '<div class="progress-card"><div class="pct">Scanning: ' + pct + '%</div><div class="progress-bg"><div class="progress-fill" style="width:' + pct + '%"></div></div>'
+    + '<div class="progress-info"><span>' + (cache.scanned||0) + ' / ' + (cache.total||0) + ' blocks</span><span class="events">' + (cache.events||[]).length + ' events found</span></div></div>';
+}
+
+async function pollStatus(addr) {
+  try {
+    const resp = await fetch('/api/scan-status/' + encodeURIComponent(addr));
+    const cache = await resp.json();
+    document.getElementById('progressContainer').innerHTML = renderProgress(cache);
+    if (cache.status === 'complete') {
+      clearInterval(pollTimer); pollTimer = null;
+      document.getElementById('result').innerHTML += renderEvents(cache.events);
+      document.getElementById('blockInfo').textContent += ' (' + cache.events.length + ' events)';
+    } else if (cache.status === 'error') {
+      clearInterval(pollTimer); pollTimer = null;
+    } else if (cache.events && cache.events.length > 0) {
+      document.getElementById('blockInfo').textContent = 'Block: ? (' + cache.events.length + ' events so far)';
+    }
+  } catch(e) { console.log(e); }
+}
+
+async function search() {
+  const addr = document.getElementById('addressInput').value.trim();
+  if (!addr) return;
+  document.getElementById('error').style.display = 'none';
+  document.getElementById('result').innerHTML = '';
+  document.getElementById('blockInfo').textContent = '';
+  document.getElementById('progressContainer').innerHTML = '';
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  document.getElementById('loading').style.display = 'block';
+  try {
+    const resp = await fetch('/api/wallet/' + encodeURIComponent(addr));
+    const data = await resp.json();
+    document.getElementById('loading').style.display = 'none';
+    if (data.error) { document.getElementById('error').textContent = data.error; document.getElementById('error').style.display = 'block'; return; }
+    document.getElementById('blockInfo').textContent = 'Block: ' + data.block;
+    document.getElementById('result').innerHTML = renderBalance(data);
+    const cache = data.cache || {};
+    if (cache.status === 'scanning' || cache.status === 'starting') {
+      document.getElementById('progressContainer').innerHTML = renderProgress(cache);
+      pollTimer = setInterval(() => pollStatus(addr), 2000);
+    } else if (cache.status === 'complete') {
+      document.getElementById('result').innerHTML += renderEvents(cache.events);
+      document.getElementById('blockInfo').textContent += ' (' + cache.events.length + ' events)';
+    }
+    loadRanking();
+  } catch (e) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error').textContent = 'Error: ' + e.message;
+    document.getElementById('error').style.display = 'block';
+  }
+}
+document.getElementById('addressInput').addEventListener('keydown', e => { if (e.key === 'Enter') search(); });
+loadRanking();
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: quip-wallet-explorer
+    runtime: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 1 --timeout 300 app:app
+    envVars:
+      - key: QUIP_VALIDATOR_URL
+        value: https://bootnode-1.testnet.quip.network:20049/rpc
+      - key: PYTHONUNBUFFERED
+        value: "1"
